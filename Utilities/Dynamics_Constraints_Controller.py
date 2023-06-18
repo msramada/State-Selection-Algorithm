@@ -26,14 +26,16 @@ def controller(x): #Here you define your controller, whether an MPC, SMPC, CBF, 
     u=-0.05*x[0]*x[1]
     return u
 
-def Constraints(u,state,Ulim):
-    ConstraintX=0
-    ConstraintU=0
-    x=state[0]
-    y=state[1]
-    if ((3<x<5)&(-4<y<2)|(-2<x<5)&(-7<y<-4)):
-            ConstraintX=1
-    if (abs(u)>Ulim):
-            ConstraintU=1
-    return np.array([ConstraintX, ConstraintU])
+
+H = np.array([[1, 0], [0, 1]])
+b = np.array([[5,2]]).T
+def CostAndConstraints(Control_seq,xk2prime):
+        cost = (xk2prime ** 2).sum() + (Control_seq ** 2).sum()
+        # Bounds on the control
+        Control_violations = abs(Control_seq) > 5
+        # Linear state constraints violation: Hx > b
+        State_violations = (H @ xk2prime) > b
+        State_violations = State_violations.sum(axis=1)>0
+        number_of_violations = State_violations.squeeze() | Control_violations.squeeze()
+        return cost, number_of_violations
 

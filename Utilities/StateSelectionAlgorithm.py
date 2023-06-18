@@ -45,7 +45,7 @@ class StateSelectionAlgorithm(ParticleFilter):
             x0prime=self.particles[:,i]
             for j in range(self.number_of_simulations):
                 Control_seq, xk2prime = self.sample_xk_dblPrime(x0prime)
-                cost, number_of_violations = self.CostAndConstraints(Control_seq, xk2prime)
+                cost, number_of_violations = CostAndConstraints(Control_seq, xk2prime)
                 StateCandidateCost[i] += (cost + 
                     self.LangrangeMultp * number_of_violations) / self.Pred_Horizon_N
                 
@@ -54,27 +54,9 @@ class StateSelectionAlgorithm(ParticleFilter):
         x0star=self.particles[:,minCost]
         return x0star
 
-    def CostAndConstraints(self,Control_seq,xk2prime):
-        cost = (xk2prime ** 2).sum() + (Control_seq ** 2).sum()
-        number_of_violations = 0
-        Length = xk2prime.shape[1]
-        """
-        for j in range(Length):
-
-            if ((3<x<5)&(-4<y<2)|(-2<x<5)&(-7<y<-4)):
-                    ConstraintX=1
-            if (abs(u)>Ulim):
-                    ConstraintU=1
-        """
-        return cost, number_of_violations
-
     def ViolationProb(self): #calculates violation rates
-        num_of_violations=0
-        for i in range(self.num_particles):
-            x=self.particles[:,i]
-            _, x_violates=self.CostAndConstraints(0,x,10**6)
-            num_of_violations += x_violates
-        ViolationRate = num_of_violations / self.num_particles
+        _, number_of_violations = CostAndConstraints(0, self.particles)
+        ViolationRate = number_of_violations / self.num_particles
         return ViolationRate
 
 
