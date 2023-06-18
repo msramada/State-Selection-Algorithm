@@ -12,17 +12,17 @@ class Model:
 
 
 class ParticleFilter(Model): #x0 2D column vector
-    def __init__(self, x0, Cov0, number_of_samples, stateDynamics, measurementDynamics, Q, R):
+    def __init__(self, x0, Cov0, num_particles, stateDynamics, measurementDynamics, Q, R):
         super().__init__(stateDynamics, measurementDynamics, Q, R)
         self.rx = self.Q.shape[0]
         self.ry = self.R.shape[0]
-        self.number_of_samples = number_of_samples
-        self.particles = x0 + sqrtm(np.atleast_2d(Cov0)).real @ np.random.randn(self.rx, self.number_of_samples)
-        self.likelihoods = np.ones((self.number_of_samples,)) / self.number_of_samples
+        self.num_particles = num_particles
+        self.particles = x0 + sqrtm(np.atleast_2d(Cov0)).real @ np.random.randn(self.rx, self.num_particles)
+        self.likelihoods = np.ones((self.num_particles,)) / self.num_particles
 
     def initialize(self, x0, Cov0):
-        self.particles = x0 + sqrtm(np.atleast_2d(Cov0)).real @ np.random.randn(self.rx, self.number_of_samples)
-        self.likelihoods = np.ones((self.number_of_samples,)) / self.number_of_samples
+        self.particles = x0 + sqrtm(np.atleast_2d(Cov0)).real @ np.random.randn(self.rx, self.num_particles)
+        self.likelihoods = np.ones((self.num_particles,)) / self.num_particles
 
     def sampleAverage(self):
         hat_x=(self.likelihoods * self.particles).sum(axis = 1)
@@ -34,10 +34,10 @@ class ParticleFilter(Model): #x0 2D column vector
         return hat_Cov
     
     def MeasurementUpdate(self, u, y):
-        log_prob_perSample = np.full((self.number_of_samples,), np.nan)
+        log_prob_perSample = np.full((self.num_particles,), np.nan)
         y = y.squeeze()
         u = u.squeeze()
-        for j in range(self.number_of_samples):
+        for j in range(self.num_particles):
             xj = self.particles[:,j]
             measurementError = y - self.g(xj, u)
             measurementError = measurementError.squeeze()
@@ -46,21 +46,22 @@ class ParticleFilter(Model): #x0 2D column vector
         self.likelihoods = self.likelihoods * Likelihoods/(self.likelihoods * Likelihoods).sum() #Normalizing Likelihoods vector
 
     def TimeUpdate(self, u):
-        Xiplus=np.full((self.rx, self.number_of_samples), np.nan)
-        for j in range(self.number_of_samples):
+        Xiplus=np.full((self.rx, self.num_particles), np.nan)
+        for j in range(self.num_particles):
             xj = self.particles[:,j]
-            xj_plus = self.f(xj, u) + sqrtm(self.Q).real @ np.random.randn(self.rx,)
+            w = sqrtm(self.Q).real @ np.random.randn(self.rx,)
+            xj_plus = self.f(xj, u, w)
             Xiplus[:,j] = xj_plus.squeeze()
         self.particles = Xiplus
     
     def Resampler(self):
-        x_resampled=np.full((self.rx, self.number_of_samples), np.nan)
+        x_resampled=np.full((self.rx, self.num_particles), np.nan)
         CDF=self.likelihoods.cumsum()
-        for i in range(self.number_of_samples):
+        for i in range(self.num_particles):
             I=np.array(np.where(CDF>=np.random.rand(1,))) #CDF inverse of a uniformly sampled point in (0,1)
             x_resampled[:,i]=self.particles[:,I.min()] #Corresponding particle
         self.particles = x_resampled
-        self.likelihoods = np.ones((self.number_of_samples,)) / self.number_of_samples
+        self.likelihoods = np.ones((self.num_particles,)) / self.num_particles
     
     def Apply_PF(self, u, y):
         self.TimeUpdate(u)
