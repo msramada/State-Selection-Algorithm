@@ -26,7 +26,7 @@ class ParticleFilter(Model): #x0 2D column vector
 
     def sampleAverage(self):
         hat_x=(self.likelihoods * self.particles).sum(axis = 1)
-        return hat_x
+        return np.atleast_2d(hat_x).T
     
     def sampleCov(self):
         hat_x = self.sampleAverage()
